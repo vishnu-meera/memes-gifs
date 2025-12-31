@@ -1,0 +1,151 @@
+/* ============================================
+   RESPONSIVE DESIGN - Mobile First
+   ============================================ */
+
+/* Base styles are mobile (< 640px) */
+
+/* Small tablets and large phones (640px and up) */
+@media (min-width: 640px) {
+    :root {
+        --space-md: 1.25rem;
+        --space-lg: 2rem;
+        --space-xl: 2.5rem;
+        --space-2xl: 4rem;
+    }
+    
+    .container {
+        padding: 0 var(--space-lg);
+    }
+    
+    .logo-text {
+        display: inline; /* Show full text on larger screens */
+    }
+    
+    .meme-title {
+        font-size: var(--font-size-lg);
+    }
+}
+
+/* Tablets (768px and up) */
+@media (min-width: 768px) {
+    :root {
+        --header-height: 72px;
+        --max-width: 680px;
+    }
+    
+    .logo {
+        font-size: var(--font-size-2xl);
+    }
+    
+    .meme-card {
+        border-radius: var(--radius-xl);
+    }
+    
+    .meme-card-header,
+    .meme-card-footer {
+        padding: var(--space-lg);
+    }
+}
+
+/* Desktops (1024px and up) */
+@media (min-width: 1024px) {
+    .container {
+        padding: 0 var(--space-xl);
+    }
+    
+    /* Smooth scrolling for desktop */
+    html {
+        scroll-behavior: smooth;
+    }
+}
+
+/* Large desktops (1280px and up) */
+@media (min-width: 1280px) {
+    :root {
+        --max-width: 720px;
+    }
+}
+
+/* ============================================
+   TOUCH DEVICE OPTIMIZATIONS
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+    /* Increase touch targets for mobile */
+    .theme-toggle {
+        width: 52px;
+        height: 52px;
+    }
+    
+    .btn-reload {
+        padding: var(--space-lg) var(--space-2xl);
+        font-size: var(--font-size-lg);
+    }
+    
+    /* Remove hover effects on touch devices */
+    .meme-card:hover {
+        transform: none;
+        box-shadow: none;
+    }
+}
+
+/* ============================================
+   HIGH DPI SCREENS
+   ============================================ */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    /* Sharper borders */
+    .header,
+    .meme-card,
+    .meme-card-header,
+    .meme-card-footer {
+        border-width: 0.5px;
+    }
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+@media print {
+    .header,
+    .theme-toggle,
+    .loading-indicator,
+    .end-message,
+    .footer {
+        display: none;
+    }
+    
+    .meme-card {
+        page-break-inside: avoid;
+    }
+}
+
+/* ============================================
+   DARK MODE SYSTEM PREFERENCE
+   (Can be overridden by user toggle)
+   ============================================ */
+@media (prefers-color-scheme: light) {
+    html:not([data-theme]) {
+        /* Apply light theme if no theme is set */
+        color-scheme: light;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    html:not([data-theme]) {
+        /* Apply dark theme if no theme is set */
+        color-scheme: dark;
+    }
+}

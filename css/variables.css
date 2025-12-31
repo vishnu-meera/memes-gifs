@@ -1,0 +1,140 @@
+/* ============================================
+   CSS VARIABLES - THEME SYSTEM
+   Add new themes by duplicating a theme block
+   ============================================ */
+
+:root {
+    /* Spacing System */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+    
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    
+    /* Typography */
+    --font-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --font-mono: 'Courier New', monospace;
+    
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 2rem;
+    
+    /* Layout */
+    --header-height: 64px;
+    --max-width: 680px;
+    --card-max-width: 100%;
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-base: 250ms ease;
+    --transition-slow: 350ms ease;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   DARK THEME (Default)
+   ============================================ */
+[data-theme="dark"] {
+    /* Background Colors */
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --bg-hover: #30363d;
+    
+    /* Text Colors */
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-tertiary: #6e7681;
+    
+    /* Border Colors */
+    --border-primary: #30363d;
+    --border-secondary: #21262d;
+    
+    /* Accent Colors */
+    --accent-primary: #58a6ff;
+    --accent-hover: #4493e7;
+    --accent-active: #3884d6;
+    
+    /* Status Colors */
+    --success: #3fb950;
+    --warning: #d29922;
+    --error: #f85149;
+    
+    /* Overlay */
+    --overlay: rgba(13, 17, 23, 0.8);
+    
+    /* Theme Toggle */
+    --toggle-bg: #30363d;
+}
+
+/* ============================================
+   LIGHT THEME
+   ============================================ */
+[data-theme="light"] {
+    /* Background Colors */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f6f8fa;
+    --bg-tertiary: #eaeef2;
+    --bg-hover: #dfe3e8;
+    
+    /* Text Colors */
+    --text-primary: #1f2328;
+    --text-secondary: #656d76;
+    --text-tertiary: #8c959f;
+    
+    /* Border Colors */
+    --border-primary: #d1d9e0;
+    --border-secondary: #eaeef2;
+    
+    /* Accent Colors */
+    --accent-primary: #0969da;
+    --accent-hover: #0860ca;
+    --accent-active: #0757ba;
+    
+    /* Status Colors */
+    --success: #1a7f37;
+    --warning: #bf8700;
+    --error: #d1242f;
+    
+    /* Overlay */
+    --overlay: rgba(255, 255, 255, 0.8);
+    
+    /* Theme Toggle */
+    --toggle-bg: #eaeef2;
+}
+
+/* ============================================
+   FUTURE THEMES - Template
+   ============================================ */
+/*
+[data-theme="ocean"] {
+    --bg-primary: #002b36;
+    --bg-secondary: #073642;
+    --text-primary: #93a1a1;
+    --accent-primary: #268bd2;
+    ... etc
+}
+
+[data-theme="forest"] {
+    --bg-primary: #1a2421;
+    --bg-secondary: #2d3a32;
+    --text-primary: #d4e4d8;
+    --accent-primary: #5ec269;
+    ... etc
+}
+*/
