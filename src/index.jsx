@@ -6,8 +6,14 @@ import './styles/main.css';
 // CONFIG
 // ============================================
 const SUBREDDITS = ['ProgrammerHumor', 'programmingmemes', 'softwaregore', 'techhumor', 'coding'];
-const INITIAL_FETCH = 5;
-const BATCH_SIZE = 5;
+
+// Progressive fetch strategy: 10 → 100 → 200 → 400 (4 requests max)
+const FETCH_SCHEDULE = [
+  { count: 10, triggerAt: 0 },      // First request: 10 memes
+  { count: 100, triggerAt: 7 },     // When user reaches 7, fetch 100 more
+  { count: 200, triggerAt: 75 },    // When user reaches 75, fetch 200 more
+  { count: 400, triggerAt: 175 }    // When user reaches 175, fetch 400 more (final)
+];
 
 // Fix camelCase titles
 const fixTitle = (title) => {
@@ -27,6 +33,7 @@ const store = {
   listeners: new Set(),
   seenIds: new Set(),
   cursors: {},
+  fetchIndex: 0, // Track which fetch we're on (0-3)
 
   subscribe(fn) {
     this.listeners.add(fn);
@@ -41,46 +48,76 @@ const store = {
     return SUBREDDITS[Math.floor(Math.random() * SUBREDDITS.length)];
   },
 
-  async fetchBatch(count) {
+  // Check if we should trigger next fetch based on current viewed index
+  shouldFetch(viewedIndex) {
+    if (this.fetchIndex >= FETCH_SCHEDULE.length) return false; // All 4 fetches done
+    if (this.loading) return false;
+
+    const nextFetch = FETCH_SCHEDULE[this.fetchIndex];
+    return viewedIndex >= nextFetch.triggerAt;
+  },
+
+  async fetchBatch() {
+    if (this.fetchIndex >= FETCH_SCHEDULE.length) return; // Max 4 requests
     if (this.loading) return;
+
+    const { count } = FETCH_SCHEDULE[this.fetchIndex];
     this.loading = true;
     this.notify();
 
-    const sub = this.randomSub();
-    const cursor = this.cursors[sub] || '';
+    console.log(`Fetch #${this.fetchIndex + 1}: Requesting ${count} memes`);
 
-    try {
-      const url = `https://www.reddit.com/r/${sub}/.json?limit=${count + 10}${cursor ? `&after=${cursor}` : ''}`;
-      const res = await fetch(url);
-      const json = await res.json();
+    // Fetch from multiple subreddits to get enough variety
+    const subsToFetch = this.fetchIndex === 0 ? 2 : Math.min(5, Math.ceil(count / 25));
+    const perSubLimit = Math.ceil(count / subsToFetch) + 10;
 
-      if (json.data?.after) {
-        this.cursors[sub] = json.data.after;
+    const allPosts = [];
+
+    for (let i = 0; i < subsToFetch; i++) {
+      const sub = this.randomSub();
+      const cursor = this.cursors[sub] || '';
+
+      try {
+        // Use Netlify function to avoid CORS
+        const url = `/.netlify/functions/reddit?subreddit=${sub}&limit=${perSubLimit}${cursor ? `&after=${cursor}` : ''}`;
+        const res = await fetch(url);
+        const json = await res.json();
+
+        if (json.data?.after) {
+          this.cursors[sub] = json.data.after;
+        }
+
+        const posts = (json.data?.children || [])
+          .map(c => c.data)
+          .filter(p => !p.over_18 && !p.stickied && this.hasImage(p))
+          .filter(p => !this.seenIds.has(p.id))
+          .map(p => ({
+            id: p.id,
+            title: p.title,
+            url: this.getImageUrl(p),
+            source: `r/${p.subreddit}`,
+            upvotes: p.ups,
+            isGif: p.url?.includes('.gif'),
+          }))
+          .filter(p => p.url);
+
+        allPosts.push(...posts);
+      } catch (e) {
+        console.warn(`Fetch failed for ${sub}:`, e);
       }
-
-      const posts = (json.data?.children || [])
-        .map(c => c.data)
-        .filter(p => !p.over_18 && !p.stickied && this.hasImage(p))
-        .filter(p => !this.seenIds.has(p.id))
-        .slice(0, count)
-        .map(p => ({
-          id: p.id,
-          title: p.title,
-          url: this.getImageUrl(p),
-          source: `r/${p.subreddit}`,
-          upvotes: p.ups,
-          isGif: p.url?.includes('.gif'),
-        }))
-        .filter(p => p.url);
-
-      posts.forEach(p => this.seenIds.add(p.id));
-      this.shuffle(posts);
-      this.memes.push(...posts);
-
-    } catch (e) {
-      console.warn('Fetch failed:', e);
     }
 
+    // Mark as seen and add to memes
+    allPosts.forEach(p => this.seenIds.add(p.id));
+    this.shuffle(allPosts);
+
+    // Take only what we need for this batch
+    const toAdd = allPosts.slice(0, count);
+    this.memes.push(...toAdd);
+
+    console.log(`Fetch #${this.fetchIndex + 1} complete: Added ${toAdd.length} memes. Total: ${this.memes.length}`);
+
+    this.fetchIndex++;
     this.loading = false;
     this.notify();
   },
@@ -111,7 +148,7 @@ const store = {
 // ============================================
 // MEME CARD COMPONENT
 // ============================================
-const MemeCard = ({ meme, onVisible }) => {
+const MemeCard = ({ meme, index, onVisible }) => {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const ref = useRef();
@@ -124,7 +161,7 @@ const MemeCard = ({ meme, onVisible }) => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          onVisible?.();
+          onVisible?.(index);
         }
       },
       { threshold: 0.5 }
@@ -132,13 +169,13 @@ const MemeCard = ({ meme, onVisible }) => {
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [index]);
 
   if (error) {
     return (
       <div class="meme-slide" ref={ref}>
         <div class="meme-card meme-card--error">
-          <span>😕 Failed to load</span>
+          <span>Failed to load</span>
         </div>
       </div>
     );
@@ -182,7 +219,7 @@ const App = () => {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
 
   useEffect(() => {
-    store.fetchBatch(INITIAL_FETCH);
+    store.fetchBatch(); // Initial fetch (10 memes)
     return store.subscribe(() => refresh(n => n + 1));
   }, []);
 
@@ -191,10 +228,10 @@ const App = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Load more when near end
+  // Check if we should fetch more when user views a meme
   const handleVisible = (index) => {
-    if (index >= store.memes.length - 2 && !store.loading) {
-      store.fetchBatch(BATCH_SIZE);
+    if (store.shouldFetch(index)) {
+      store.fetchBatch();
     }
   };
 
@@ -226,7 +263,8 @@ const App = () => {
           <MemeCard
             key={meme.id}
             meme={meme}
-            onVisible={() => handleVisible(i)}
+            index={i}
+            onVisible={handleVisible}
           />
         ))}
 
