@@ -32,7 +32,6 @@ const store = {
   loading: false,
   listeners: new Set(),
   seenIds: new Set(),
-  cursors: {},
   fetchIndex: 0, // Track which fetch we're on (0-3)
 
   subscribe(fn) {
@@ -57,6 +56,34 @@ const store = {
     return viewedIndex >= nextFetch.triggerAt;
   },
 
+  async fetchFromApi(subreddit, count) {
+    // meme-api.com limits to 50 per request, so we may need multiple calls
+    const maxPerRequest = 50;
+    const allMemes = [];
+    let remaining = count;
+
+    while (remaining > 0) {
+      const batchSize = Math.min(remaining, maxPerRequest);
+      const url = `https://meme-api.com/gimme/${subreddit}/${batchSize}`;
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+        const data = await res.json();
+        if (data.memes) {
+          allMemes.push(...data.memes);
+        }
+        remaining -= batchSize;
+      } catch (e) {
+        console.warn(`Fetch failed for ${subreddit}:`, e);
+        break;
+      }
+    }
+
+    return allMemes;
+  },
+
   async fetchBatch() {
     if (this.fetchIndex >= FETCH_SCHEDULE.length) return; // Max 4 requests
     if (this.loading) return;
@@ -67,52 +94,41 @@ const store = {
 
     console.log(`Fetch #${this.fetchIndex + 1}: Requesting ${count} memes`);
 
-    // Fetch from multiple subreddits to get enough variety
-    const subsToFetch = this.fetchIndex === 0 ? 2 : Math.min(5, Math.ceil(count / 25));
-    const perSubLimit = Math.ceil(count / subsToFetch) + 10;
-
     const allPosts = [];
 
+    // Fetch from multiple subreddits for variety
+    const subsToFetch = this.fetchIndex === 0 ? 2 : 5;
+    const perSub = Math.ceil(count / subsToFetch);
+
+    const fetches = [];
     for (let i = 0; i < subsToFetch; i++) {
-      const sub = this.randomSub();
-      const cursor = this.cursors[sub] || '';
-
-      try {
-        // Use Netlify function to avoid CORS
-        const url = `/.netlify/functions/reddit?subreddit=${sub}&limit=${perSubLimit}${cursor ? `&after=${cursor}` : ''}`;
-        const res = await fetch(url);
-        const json = await res.json();
-
-        if (json.data?.after) {
-          this.cursors[sub] = json.data.after;
-        }
-
-        const posts = (json.data?.children || [])
-          .map(c => c.data)
-          .filter(p => !p.over_18 && !p.stickied && this.hasImage(p))
-          .filter(p => !this.seenIds.has(p.id))
-          .map(p => ({
-            id: p.id,
-            title: p.title,
-            url: this.getImageUrl(p),
-            source: `r/${p.subreddit}`,
-            upvotes: p.ups,
-            isGif: p.url?.includes('.gif'),
-          }))
-          .filter(p => p.url);
-
-        allPosts.push(...posts);
-      } catch (e) {
-        console.warn(`Fetch failed for ${sub}:`, e);
-      }
+      fetches.push(this.fetchFromApi(this.randomSub(), perSub));
     }
 
-    // Mark as seen and add to memes
-    allPosts.forEach(p => this.seenIds.add(p.id));
-    this.shuffle(allPosts);
+    const results = await Promise.all(fetches);
+    results.forEach(memes => allPosts.push(...memes));
 
-    // Take only what we need for this batch
-    const toAdd = allPosts.slice(0, count);
+    // Filter and dedupe
+    const newMemes = allPosts
+      .filter(p => !p.nsfw && !this.seenIds.has(p.postLink))
+      .map(p => ({
+        id: p.postLink,
+        title: p.title,
+        url: p.url,
+        source: `r/${p.subreddit}`,
+        upvotes: p.ups,
+        isGif: p.url?.includes('.gif'),
+      }))
+      .filter(p => p.url);
+
+    // Mark as seen
+    newMemes.forEach(p => this.seenIds.add(p.id));
+
+    // Shuffle for randomness
+    this.shuffle(newMemes);
+
+    // Take only what we need
+    const toAdd = newMemes.slice(0, count);
     this.memes.push(...toAdd);
 
     console.log(`Fetch #${this.fetchIndex + 1} complete: Added ${toAdd.length} memes. Total: ${this.memes.length}`);
@@ -127,21 +143,6 @@ const store = {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-  },
-
-  hasImage(p) {
-    const url = p.url || '';
-    return url.match(/\.(jpg|jpeg|png|gif|webp)/i) ||
-           url.includes('i.redd.it') ||
-           p.post_hint === 'image';
-  },
-
-  getImageUrl(p) {
-    const decode = s => s?.replace(/&amp;/g, '&');
-    if (p.url?.match(/\.(jpg|jpeg|png|gif|webp)/i)) return decode(p.url);
-    if (p.url?.includes('i.redd.it')) return decode(p.url);
-    if (p.preview?.images?.[0]?.source?.url) return decode(p.preview.images[0].source.url);
-    return null;
   }
 };
 
