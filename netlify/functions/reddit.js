@@ -1,7 +1,31 @@
 // Netlify serverless function to proxy Reddit API requests
-// This avoids CORS issues when fetching from the browser
+// Uses built-in https module for maximum compatibility
 
-export async function handler(event) {
+const https = require('https');
+
+const fetchReddit = (url) => {
+  return new Promise((resolve, reject) => {
+    const options = {
+      headers: {
+        'User-Agent': 'DevMemes/1.0 (stackoflols.dev)'
+      }
+    };
+
+    https.get(url, options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode, data: JSON.parse(data) });
+        } catch (e) {
+          reject(new Error('Failed to parse JSON'));
+        }
+      });
+    }).on('error', reject);
+  });
+};
+
+const handler = async (event) => {
   const { subreddit, limit, after } = event.queryStringParameters || {};
 
   if (!subreddit) {
@@ -14,23 +38,17 @@ export async function handler(event) {
   const url = `https://www.reddit.com/r/${subreddit}/.json?limit=${limit || 15}${after ? `&after=${after}` : ''}`;
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'DevMemes/1.0 (stackoflols.dev)'
-      }
-    });
+    const { status, data } = await fetchReddit(url);
 
-    if (!response.ok) {
-      throw new Error(`Reddit returned ${response.status}`);
+    if (status !== 200) {
+      throw new Error(`Reddit returned ${status}`);
     }
-
-    const data = await response.json();
 
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=60' // Cache for 1 minute
+        'Cache-Control': 'public, max-age=60'
       },
       body: JSON.stringify(data)
     };
@@ -38,7 +56,9 @@ export async function handler(event) {
     console.error('Reddit fetch error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch from Reddit' })
+      body: JSON.stringify({ error: 'Failed to fetch from Reddit', details: error.message })
     };
   }
-}
+};
+
+module.exports = { handler };
