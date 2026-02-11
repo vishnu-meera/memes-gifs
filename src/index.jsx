@@ -14,7 +14,7 @@ const fixTitle = (title) => {
 // ============================================
 // CONFIG
 // ============================================
-const SUBREDDITS = ['dankmemes', 'programmerHumor', 'programmingmemes', 'softwaregore', 'techhumor'];
+const SUBREDDITS = ['shittyprogramming', 'technope','linuxmemes', 'programmerHumor', 'programmingmemes', 'softwaregore', 'techhumor'];
 
 // ============================================
 // STORE
@@ -65,11 +65,11 @@ const store = {
     // Fetch each subreddit independently, add to store as each completes
     for (const sub of SUBREDDITS) {
       try {
-        const res = await fetch(`https://meme-api.com/gimme/${sub}/5`);
+        const res = await fetch(`https://meme-api.com/gimme/${sub}/2`);
         const data = await res.json();
         if (data.memes) {
           this.addMemes(data.memes);
-          console.log(`Got 5 from r/${sub}, total: ${this.memes.length}`);
+          console.log(`Got 2 from r/${sub}, total: ${this.memes.length}`);
         }
       } catch (e) {
         console.warn(`Failed to fetch from ${sub}:`, e);
@@ -94,12 +94,11 @@ const store = {
     const fetches = SUBREDDITS.map(async (sub) => {
       try {
         // meme-api.com max is 50, so we need 2 requests per sub
-        const [res1, res2] = await Promise.all([
-          fetch(`https://meme-api.com/gimme/${sub}/50`),
+        const [res1] = await Promise.all([
           fetch(`https://meme-api.com/gimme/${sub}/50`)
         ]);
-        const [data1, data2] = await Promise.all([res1.json(), res2.json()]);
-        return [...(data1.memes || []), ...(data2.memes || [])];
+        const [data1] = await Promise.all([res1.json()]);
+        return [...(data1.memes || [])];
       } catch (e) {
         console.warn(`Failed to fetch from ${sub}:`, e);
         return [];
@@ -124,7 +123,7 @@ const store = {
 
   // Check if we should trigger bulk fetch
   checkTrigger(viewedIndex) {
-    if (this.phase === 1 && viewedIndex >= 20) {
+    if (this.phase === 1 && viewedIndex >= 4) {
       this.fetchBulk();
     }
   }
