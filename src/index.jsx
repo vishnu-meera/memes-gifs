@@ -1,4 +1,4 @@
-import { h, render } from 'preact';
+import { render } from 'preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import './styles/main.css';
 
@@ -60,17 +60,14 @@ const store = {
     this.loading = true;
     this.notify();
 
-    console.log('Phase 1: Fetching in parallel...');
-
     // Fire ALL requests at once
     const fetches = SUBREDDITS.map(sub =>
-      fetch(`https://meme-api.com/gimme/${sub}/2`)
+      fetch(`https://meme-api.com/gimme/${sub}/1`)
         .then(res => res.json())
         .then(data => {
           if (data.memes) {
             this.addMemes(data.memes);
             this.loading = false; // Hide loader as soon as ANY memes arrive
-            console.log(`Got 2 from r/${sub}, total: ${this.memes.length}`);
           }
         })
         .catch(e => console.warn(`Failed: ${sub}`, e))
@@ -80,7 +77,6 @@ const store = {
     Promise.all(fetches).then(() => {
       this.phase = 1;
       this.notify();
-      console.log('Phase 1 complete');
     });
   },
 
@@ -90,8 +86,6 @@ const store = {
     this.loading = true;
     this.phase = 2; // Mark as done to prevent re-trigger
     this.notify();
-
-    console.log('Phase 2: Fetching 100 from each subreddit...');
 
     // Fetch all in parallel
     const fetches = SUBREDDITS.map(async (sub) => {
@@ -118,7 +112,6 @@ const store = {
     }
 
     this.addMemes(allMemes);
-    console.log(`Phase 2 complete. Total memes: ${this.memes.length}`);
 
     this.loading = false;
     this.notify();
