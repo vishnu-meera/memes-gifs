@@ -54,31 +54,34 @@ const store = {
     this.notify();
   },
 
-  // Phase 1: Get 5 from each subreddit, show as they arrive
+  // Phase 1: Get 2 from each subreddit IN PARALLEL
   async fetchInitial() {
     if (this.phase !== 0) return;
     this.loading = true;
     this.notify();
 
-    console.log('Phase 1: Fetching 5 from each subreddit...');
+    console.log('Phase 1: Fetching in parallel...');
 
-    // Fetch each subreddit independently, add to store as each completes
-    for (const sub of SUBREDDITS) {
-      try {
-        const res = await fetch(`https://meme-api.com/gimme/${sub}/2`);
-        const data = await res.json();
-        if (data.memes) {
-          this.addMemes(data.memes);
-          console.log(`Got 2 from r/${sub}, total: ${this.memes.length}`);
-        }
-      } catch (e) {
-        console.warn(`Failed to fetch from ${sub}:`, e);
-      }
-    }
+    // Fire ALL requests at once
+    const fetches = SUBREDDITS.map(sub =>
+      fetch(`https://meme-api.com/gimme/${sub}/2`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.memes) {
+            this.addMemes(data.memes);
+            this.loading = false; // Hide loader as soon as ANY memes arrive
+            console.log(`Got 2 from r/${sub}, total: ${this.memes.length}`);
+          }
+        })
+        .catch(e => console.warn(`Failed: ${sub}`, e))
+    );
 
-    this.phase = 1;
-    this.loading = false;
-    this.notify();
+    // Don't block - let rest load in background
+    Promise.all(fetches).then(() => {
+      this.phase = 1;
+      this.notify();
+      console.log('Phase 1 complete');
+    });
   },
 
   // Phase 2: Get 100 from each subreddit (triggered at meme 20)
