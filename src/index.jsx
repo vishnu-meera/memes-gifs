@@ -1,4 +1,4 @@
-import { render } from 'preact';
+import { h, render } from 'preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import './styles/main.css';
 
